@@ -63,7 +63,7 @@ Claude Code: `/plugin install message-use@leeguooooo-plugins` (or the whole fami
 | `doctor` | Database access, contacts, sending prerequisites |
 | `upgrade` | Self-upgrade (`--check`, `--json`), family convention |
 
-All read commands take `--json`. Exit codes: 2 send previewed only, 3 no database access, 4 no code found, 5 send failed.
+All read commands take `--json`. Exit codes: 2 send previewed only, 3 no database access, 4 no code found (also with `--json`, which prints `null`), 5 send failed.
 
 ## Prior art
 

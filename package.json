@@ -1,6 +1,6 @@
 {
   "name": "message-use",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "iMessage / SMS for agents through macOS Messages: read, search, watch, send, and pull verification codes. Part of the *-use family.",
   "license": "MIT",
   "type": "module",

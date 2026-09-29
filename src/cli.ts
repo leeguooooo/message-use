@@ -37,7 +37,7 @@ import {
 } from "./upgrade.ts";
 import { SKILL_MD } from "./skill.ts";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 
 const HELP = `message-use ${VERSION} — iMessage / SMS for agents, through macOS Messages.
 
@@ -279,7 +279,8 @@ async function cmdCode(p: Parsed): Promise<void> {
     const hits = withDb((db, book) =>
       findCodes(recentMessages(db, book, { sinceMs: sinceMs(p, "10m"), limit: 200, incomingOnly: true }), from));
     if (hits.length === 0) {
-      if (p.flags.has("json")) return printJson(all ? [] : null);
+      // --json still prints an empty result, but the exit code says "no code" either way.
+      if (p.flags.has("json")) printJson(all ? [] : null);
       fail(`no verification code in the last ${flagString(p, "since") ?? "10m"}${from ? ` from ${from}` : ""}`, 4);
     }
     return report(hits);
@@ -293,7 +294,7 @@ async function cmdCode(p: Parsed): Promise<void> {
     if (hits.length > 0) return report(hits);
     await new Promise((resolve) => setTimeout(resolve, 1500));
   }
-  if (p.flags.has("json")) return printJson(all ? [] : null);
+  if (p.flags.has("json")) printJson(all ? [] : null);
   fail(`no new verification code within ${Math.round(waitMs / 1000)}s`, 4);
 }
 

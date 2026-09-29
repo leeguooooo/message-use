@@ -115,6 +115,12 @@ describe("commands (fixture database)", () => {
     expect(jd.code).toBe("111111");
     const none = await run(["code", "--from", "淘宝"], f.env);
     expect(none.code).toBe(4);
+    const noneJson = await run(["code", "--from", "淘宝", "--json"], f.env);
+    expect(noneJson.code).toBe(4);
+    expect(JSON.parse(noneJson.stdout)).toBeNull();
+    const timedOut = await run(["code", "--from", "淘宝", "--wait", "1", "--json"], f.env);
+    expect(timedOut.code).toBe(4);
+    expect(JSON.parse(timedOut.stdout)).toBeNull();
   });
 
   test("code --wait ignores codes already there and returns the one that arrives", async () => {

@@ -29,6 +29,8 @@ export function openChatDb(env: NodeJS.ProcessEnv = process.env): Database {
   if (!existsSync(path)) throw new ChatDbError("missing", `no Messages database at ${path}`);
   try {
     const db = new Database(path, { readonly: true });
+    // Messages.app writes to this file while we read it; wait out its locks instead of failing.
+    db.exec("PRAGMA busy_timeout = 3000");
     db.query("select 1 from message limit 1").get();
     return db;
   } catch (error) {

@@ -3,6 +3,7 @@
 ## 0.1.1
 
 - `code --json` now exits 4 when no code is found (it still prints `null`, or `[]` with `--all`), including when `--wait` times out. Before, it exited 0 and scripts could not tell a timeout from a code.
+- `code --wait` no longer quits with exit 3 when a poll collides with Messages.app writing the database (often the moment the awaited text arrives): reads wait out SQLite locks and a failed poll is retried.
 
 ## 0.1.0
 

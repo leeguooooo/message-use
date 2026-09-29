@@ -290,7 +290,19 @@ async function cmdCode(p: Parsed): Promise<void> {
   const deadline = Date.now() + waitMs;
   process.stderr.write(`waiting up to ${Math.round(waitMs / 1000)}s for a new verification code${from ? ` from ${from}` : ""}…\n`);
   while (Date.now() < deadline) {
-    const hits = withDb((db, book) => findCodes(recentMessages(db, book, { afterId: startId, limit: 50, incomingOnly: true }), from));
+    // A read that collides with Messages.app writing the very text we wait for is retried on the
+    // next poll; access problems already surfaced when startId was read above.
+    let hits: CodeHit[] = [];
+    try {
+      const db = openChatDb();
+      try {
+        hits = findCodes(recentMessages(db, loadContacts(), { afterId: startId, limit: 50, incomingOnly: true }), from);
+      } finally {
+        db.close();
+      }
+    } catch {
+      hits = [];
+    }
     if (hits.length > 0) return report(hits);
     await new Promise((resolve) => setTimeout(resolve, 1500));
   }

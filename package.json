@@ -1,0 +1,10 @@
+{
+  "name": "message-use",
+  "version": "0.1.0",
+  "description": "iMessage / SMS for agents through macOS Messages: read, search, watch, send, and pull verification codes. Part of the *-use family.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "message-use": "./src/cli.ts" },
+  "scripts": { "test": "bun test", "check": "bun test && bunx tsc --noEmit" },
+  "devDependencies": { "@types/bun": "^1.4.0", "typescript": "^5.5.0" }
+}

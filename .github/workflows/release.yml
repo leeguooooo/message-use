@@ -85,4 +85,10 @@ jobs:
           scripts/release-notes.sh "${GITHUB_REF_NAME}" > release-notes.md
           gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes-file release-notes.md 2>/dev/null \
             || gh release edit "${GITHUB_REF_NAME}" --notes-file release-notes.md
-          gh release upload "${GITHUB_REF_NAME}" ${{ matrix.asset }}.tar.gz ${{ matrix.asset }}.tar.gz.sha256 --clobber
+          # Both matrix jobs race to create the release; a just-created one can still read as
+          # "release not found" for a few seconds, so retry the upload.
+          for attempt in 1 2 3 4 5; do
+            gh release upload "${GITHUB_REF_NAME}" ${{ matrix.asset }}.tar.gz ${{ matrix.asset }}.tar.gz.sha256 --clobber && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1

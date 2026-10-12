@@ -60,3 +60,7 @@ MIT
 ## 作者
 
 **郭立（Guo Li / leeguoo）** 开发 —— [leeguoo.com](https://leeguoo.com/about) · [GitHub](https://github.com/leeguooooo) · [X](https://x.com/leeguooooo) · 更多工具见 [*-use 家族](https://github.com/leeguooooo/plugins)。
+
+`code --wait --json` 超时时退出码为 4，并返回 `{ "status": "timeout", "codes": null, "diagnostics": ... }`（`--all` 的 `codes` 为 `[]`）。诊断包含数据库可读性、最新本地消息时间及距今秒数、最近 10 分钟和等待期间的收到消息数、是否使用发送者过滤，以及检查建议。诊断不含正文、验证码、手机号、账号标识或数据库路径。本地消息较旧也可能只是没有新消息，不能据此确定同步故障。等待结束时数据库不可读则返回 `database_error`，退出码为 3。成功时的验证码输出格式不变。
+
+`message-use doctor --json` 输出可解析的 JSON；数据库不可读时退出码为 3。

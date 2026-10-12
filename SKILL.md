@@ -45,6 +45,11 @@ Add `--json` to any read command for structured output.
 - Quote only what the task needs; don't paste whole conversation histories into replies.
 - Exit codes: 2 = send previewed but not sent, 3 = no database access, 4 = no code found (with `--json` it still prints `null` / `[]`), 5 = send failed.
 
+
+`code --wait --json` exits 4 on timeout and returns `{ "status": "timeout", "codes": null, "diagnostics": ... }` (`codes: []` with `--all`). Diagnostics include database readability, newest local-message timestamp/age in seconds, incoming counts over the last 10 minutes and since waiting began, sender-filter presence, and a troubleshooting hint. They omit bodies, OTPs, phone numbers, account identifiers and database paths. An old local timestamp may mean a quiet inbox; it does not establish a sync failure. If the database is unreadable at the end of the wait, the status is `database_error` and exit code is 3. Successful code output is unchanged.
+
+`message-use doctor --json` emits aggregate JSON diagnostics and exits 3 if the database is unreadable.
+
 ## Upgrade
 
 When any `message-use` command prints `message-use X is available`, tell the user and offer to run

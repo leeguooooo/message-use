@@ -9,7 +9,6 @@ import { randomUUID } from "node:crypto";
 import { extractCode, smsBrand } from "./codes.ts";
 import {
   ChatDbError,
-  chatDbPath,
   chatHistory,
   contactName,
   listChats,
@@ -36,8 +35,9 @@ import {
   UPDATE_CHECK_COMMAND,
 } from "./upgrade.ts";
 import { SKILL_MD } from "./skill.ts";
+import { databaseDiagnostics, diagnosticHint } from "./diagnostics.ts";
 
-export const VERSION = "0.1.1";
+export const VERSION = "0.1.2";
 
 const HELP = `message-use ${VERSION} — iMessage / SMS for agents, through macOS Messages.
 
@@ -59,7 +59,7 @@ Usage:
   message-use send --to <chat|number|email> (--text <text> | --file <path>) [--service auto|imessage|sms] [--yes]
       Without --yes, prints what would be sent and sends nothing. Pass --yes only after the
       user has confirmed the recipient and the text.
-  message-use doctor            Check database access, contacts, and sending prerequisites.
+  message-use doctor [--json]   Check database access, contacts, and sending prerequisites.
   message-use skill install     Install the agent skill for Claude Code, Codex and ~/.agents.
   message-use upgrade [--check | --json]
   message-use version | help
@@ -288,7 +288,7 @@ async function cmdCode(p: Parsed): Promise<void> {
   // --wait: only codes that arrive after now (a code already on screen is usually the stale one).
   const startId = withDb((db) => maxMessageId(db));
   const deadline = Date.now() + waitMs;
-  process.stderr.write(`waiting up to ${Math.round(waitMs / 1000)}s for a new verification code${from ? ` from ${from}` : ""}…\n`);
+  process.stderr.write(`waiting up to ${Math.round(waitMs / 1000)}s for a new verification code${from !== undefined ? " (sender filter applied)" : ""}…\n`);
   while (Date.now() < deadline) {
     // A read that collides with Messages.app writing the very text we wait for is retried on the
     // next poll; access problems already surfaced when startId was read above.
@@ -304,10 +304,21 @@ async function cmdCode(p: Parsed): Promise<void> {
       hits = [];
     }
     if (hits.length > 0) return report(hits);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, Math.min(1500, Math.max(0, deadline - Date.now()))));
   }
-  if (p.flags.has("json")) printJson(all ? [] : null);
-  fail(`no new verification code within ${Math.round(waitMs / 1000)}s`, 4);
+  const database = databaseDiagnostics(startId);
+  const hint = diagnosticHint(database, from !== undefined);
+  const result = {
+    status: database.readable ? "timeout" : "database_error",
+    codes: all ? [] : null,
+    diagnostics: { database, sender_filter_applied: from !== undefined, hint },
+  };
+  if (p.flags.has("json")) printJson(result);
+  else {
+    console.log(`database readable: ${database.readable}; newest local message: ${database.newest_local_message_at ?? "unknown"}; age: ${database.newest_local_message_age_seconds ?? "unknown"}s; incoming in last 10m: ${database.recent_incoming_count ?? "unknown"}; new incoming during wait: ${database.new_incoming_count ?? "unknown"}; sender filter applied: ${from !== undefined}`);
+    console.log(hint);
+  }
+  fail(database.readable ? `no new verification code within ${Math.round(waitMs / 1000)}s` : "could not read Messages database at the end of the wait", database.readable ? 4 : 3);
 }
 
 async function cmdWatch(p: Parsed): Promise<void> {
@@ -388,30 +399,32 @@ function cmdSend(p: Parsed): void {
   console.log(`sent to ${plan.label} via ${plan.service}`);
 }
 
-function cmdDoctor(): void {
-  const ok = (s: string) => console.log(`  ✅ ${s}`);
-  const warn = (s: string) => console.log(`  ⚠️  ${s}`);
-  console.log("Messages database");
-  try {
-    const db = openChatDb();
-    const count = (db.query("select count(*) n from message").get() as { n: number }).n;
-    const latest = recentMessages(db, new Map(), { limit: 1 })[0];
-    db.close();
-    ok(`${chatDbPath()} readable — ${count} messages, newest ${latest?.date ? localTime(latest.date) : "?"}`);
-  } catch (error) {
-    if (error instanceof ChatDbError && error.code === "no-access") {
-      warn("no access — grant Full Disk Access to your terminal (System Settings › Privacy & Security › Full Disk Access), then restart it");
-    } else {
-      warn(error instanceof Error ? error.message : String(error));
-    }
-  }
-  console.log("Contacts");
+function cmdDoctor(p: Parsed): void {
+  const database = databaseDiagnostics();
   const book = loadContacts();
-  if (book.size > 0) ok(`${book.size} phone numbers / emails resolve to names`);
-  else warn("no contacts readable — conversations show raw numbers (Full Disk Access also covers Contacts)");
+  const report = {
+    database,
+    contacts: { readable_entries: book.size },
+    sending: {
+      automation_permission: "The first send asks for Automation permission (terminal to Messages).",
+      sms_forwarding: "On the iPhone, enable this Mac under Settings > Apps > Messages > Text Message Forwarding.",
+    },
+    hint: diagnosticHint(database),
+  };
+  if (!database.readable) process.exitCode = 3;
+  if (p.flags.has("json")) return printJson(report);
+  console.log("Messages database");
+  console.log(database.readable
+    ? `  ✅ readable — ${database.message_count} messages, newest ${localTime(database.newest_local_message_at)}`
+    : `  ⚠️  ${database.error}`);
+  console.log(`  ${report.hint}`);
+  console.log("Contacts");
+  console.log(book.size > 0
+    ? `  ✅ ${book.size} phone numbers / emails resolve to names`
+    : "  ⚠️  no contacts readable — conversations show raw numbers (Full Disk Access also covers Contacts)");
   console.log("Sending");
-  console.log("  ｰ  the first send asks for Automation permission (terminal → Messages); allow it");
-  console.log("  ｰ  SMS: iPhone › Settings › Apps › Messages › Text Message Forwarding › enable this Mac");
+  console.log(`  ${report.sending.automation_permission}`);
+  console.log(`  ${report.sending.sms_forwarding}`);
 }
 
 function installSkill(): void {
@@ -495,7 +508,7 @@ async function main(): Promise<void> {
     case "code": return cmdCode(p);
     case "watch": return cmdWatch(p);
     case "send": return cmdSend(p);
-    case "doctor": return cmdDoctor();
+    case "doctor": return cmdDoctor(p);
     case "skill":
       if (p.positional[0] !== "install") fail("usage: message-use skill install");
       return installSkill();

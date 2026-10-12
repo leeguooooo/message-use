@@ -76,3 +76,7 @@ MIT
 ## Author
 
 Built by **郭立 (Guo Li / leeguoo)** — [leeguoo.com](https://leeguoo.com/about) · [GitHub](https://github.com/leeguooooo) · [X](https://x.com/leeguooooo) · more tools in the [*-use family](https://github.com/leeguooooo/plugins).
+
+`code --wait --json` exits 4 on timeout and returns `{ "status": "timeout", "codes": null, "diagnostics": ... }` (`codes: []` with `--all`). Diagnostics include database readability, newest local-message timestamp/age in seconds, incoming counts over the last 10 minutes and since waiting began, sender-filter presence, and a troubleshooting hint. They omit bodies, OTPs, phone numbers, account identifiers and database paths. An old local timestamp may mean a quiet inbox; it does not establish a sync failure. If the database is unreadable at the end of the wait, the status is `database_error` and exit code is 3. Successful code output is unchanged.
+
+`message-use doctor --json` emits aggregate JSON diagnostics and exits 3 if the database is unreadable.

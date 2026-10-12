@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { extractCode, smsBrand } from "../src/codes.ts";
 import { appleDateToMs, decodeAttributedBody, msToAppleDate, phoneKey } from "../src/db.ts";
@@ -120,7 +120,73 @@ describe("commands (fixture database)", () => {
     expect(JSON.parse(noneJson.stdout)).toBeNull();
     const timedOut = await run(["code", "--from", "淘宝", "--wait", "1", "--json"], f.env);
     expect(timedOut.code).toBe(4);
-    expect(JSON.parse(timedOut.stdout)).toBeNull();
+    expect(JSON.parse(timedOut.stdout)).toMatchObject({ status: "timeout", codes: null, diagnostics: { sender_filter_applied: true, database: { readable: true, recent_incoming_count: 2, new_incoming_count: 0 } } });
+  });
+
+  test("timeout reports an old local database without claiming sync failure or leaking identifiers", async () => {
+    const f = makeFixture();
+    f.addMessage({ chat: 2, handle: 2, text: "private body verification code: 482913", minutesAgo: 1440 });
+    const r = await run(["code", "--wait", "1", "--from", "alice@example.com", "--json"], f.env);
+    expect(r.code).toBe(4);
+    const result = JSON.parse(r.stdout);
+    expect(result).toMatchObject({ status: "timeout", codes: null, diagnostics: {
+      sender_filter_applied: true,
+      database: { readable: true, recent_window_seconds: 600, recent_incoming_count: 0, new_incoming_count: 0 },
+    } });
+    expect(Date.parse(result.diagnostics.database.newest_local_message_at)).toBeGreaterThan(0);
+    expect(result.diagnostics.database.newest_local_message_age_seconds).toBeGreaterThanOrEqual(86400);
+    expect(result.diagnostics.hint).toContain("does not establish a sync failure");
+    for (const secret of ["private body", "482913", "alice@example.com", f.path]) {
+      expect(r.stdout + r.stderr).not.toContain(secret);
+    }
+  });
+
+  test("new incoming without a code yields search guidance and --all timeout envelope", async () => {
+    const f = makeFixture();
+    const pending = run(["code", "--wait", "2", "--all", "--json"], f.env);
+    await Bun.sleep(400);
+    f.addMessage({ chat: 1, handle: 1, text: "private parcel arrived" });
+    const r = await pending;
+    expect(r.code).toBe(4);
+    const result = JSON.parse(r.stdout);
+    expect(result).toMatchObject({ status: "timeout", codes: [], diagnostics: {
+      sender_filter_applied: false, database: { readable: true, recent_incoming_count: 1, new_incoming_count: 1 },
+    } });
+    expect(result.diagnostics.hint).toContain("code format unrecognized");
+    expect(r.stdout).not.toContain("private parcel");
+    expect(r.stdout).not.toContain("+8613800138000");
+  });
+
+  test("database lost during wait is an access failure, not a no-code timeout", async () => {
+    const f = makeFixture();
+    const pending = run(["code", "--wait", "1", "--json"], f.env);
+    await Bun.sleep(400);
+    unlinkSync(f.path);
+    const r = await pending;
+    expect(r.code).toBe(3);
+    expect(JSON.parse(r.stdout)).toMatchObject({ status: "database_error", diagnostics: {
+      database: { readable: false, error: "missing", recent_incoming_count: null },
+    } });
+    expect(r.stdout + r.stderr).not.toContain(f.path);
+  });
+
+  test("doctor --json reports aggregate facts for readable, empty and missing databases", async () => {
+    const f = makeFixture();
+    const empty = await run(["doctor", "--json"], f.env);
+    expect(empty.code).toBe(0);
+    expect(JSON.parse(empty.stdout)).toMatchObject({ database: {
+      readable: true, message_count: 0, newest_local_message_at: null, newest_local_message_age_seconds: null, recent_incoming_count: 0,
+    } });
+    f.addMessage({ chat: 2, handle: 2, text: "private body verification code: 482913" });
+    f.addMessage({ chat: 1, handle: null, text: "outgoing", fromMe: true });
+    const readable = await run(["doctor", "--json"], f.env);
+    expect(readable.code).toBe(0);
+    expect(JSON.parse(readable.stdout)).toMatchObject({ database: { readable: true, message_count: 2, recent_incoming_count: 1 } });
+    for (const secret of ["private body", "482913", "alice@example.com", f.path]) expect(readable.stdout).not.toContain(secret);
+    const missing = await run(["doctor", "--json"], { ...f.env, MESSAGE_USE_CHAT_DB: "/nonexistent/private-account/chat.db" });
+    expect(missing.code).toBe(3);
+    expect(JSON.parse(missing.stdout)).toMatchObject({ database: { readable: false, error: "missing" } });
+    expect(missing.stdout).not.toContain("private-account");
   });
 
   test("code --wait ignores codes already there and returns the one that arrives", async () => {

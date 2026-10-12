@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- `code --wait --json` now returns a structured timeout object with database readability, newest local-message timestamp/age, incoming counts (last 10 minutes and during the wait), sender-filter presence and troubleshooting guidance. Diagnostic output omits message bodies, codes, sender identifiers and database paths; an old local timestamp does not claim a sync failure.
+- Timeout JSON is now `{ "status": "timeout", "codes": null, "diagnostics": ... }` (`codes: []` with `--all`), replacing `null`/`[]`. Successful code output and non-wait empty output are unchanged. Timeout remains exit 4; an unreadable database at the end of the wait returns `database_error` and exit 3.
+- `doctor --json` emits aggregate JSON diagnostics; database access failure exits 3. Human-readable doctor output remains available.
+
 ## 0.1.1
 
 - `code --json` now exits 4 when no code is found (it still prints `null`, or `[]` with `--all`), including when `--wait` times out. Before, it exited 0 and scripts could not tell a timeout from a code.

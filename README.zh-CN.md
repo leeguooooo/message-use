@@ -42,6 +42,8 @@ macOS 14 及以上，Apple 芯片或 Intel 都可以。程序经过 Developer ID
 
 Claude Code：`/plugin install message-use@leeguooooo-plugins`（或者装整个家族：`use-family@leeguooooo-plugins`）。
 
+源码 Skill 位于 `skills/message-use/`；手动配置 agent 时复制整个目录。`message-use skill install` 可离线安装相同的内嵌指令。
+
 ## 安全
 
 - 数据库**只读**打开，message-use 从不修改它。

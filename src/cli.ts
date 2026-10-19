@@ -60,7 +60,7 @@ Usage:
       Without --yes, prints what would be sent and sends nothing. Pass --yes only after the
       user has confirmed the recipient and the text.
   message-use doctor [--json]   Check database access, contacts, and sending prerequisites.
-  message-use skill install     Install the agent skill for Claude Code, Codex and ~/.agents.
+  message-use skill install     Install the embedded agent skill for Claude Code and Codex.
   message-use upgrade [--check | --json]
   message-use version | help
 

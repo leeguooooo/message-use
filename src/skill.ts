@@ -1,4 +1,4 @@
-// Generated from SKILL.md (test/skill.test.ts keeps them identical). Embedded so
+// Generated from skills/message-use/SKILL.md (test/message-use.test.ts checks identity). Embedded so
 // `message-use skill install` works offline.
 export const SKILL_MD = `---
 name: message-use

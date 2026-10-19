@@ -42,6 +42,8 @@ macOS 14+, Apple silicon or Intel. Binaries are Developer ID signed and notarize
 
 Claude Code: `/plugin install message-use@leeguooooo-plugins` (or the whole family: `use-family@leeguooooo-plugins`).
 
+The source Skill lives in `skills/message-use/`; copy that folder for manual agent setup. `message-use skill install` installs the same embedded instructions offline.
+
 ## Safety
 
 - The database is opened **read-only**; message-use never modifies it.

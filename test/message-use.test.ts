@@ -220,5 +220,5 @@ describe("commands (fixture database)", () => {
 });
 
 test("embedded skill is byte-identical to SKILL.md", () => {
-  expect(SKILL_MD).toBe(readFileSync(join(import.meta.dir, "..", "SKILL.md"), "utf8"));
+  expect(SKILL_MD).toBe(readFileSync(join(import.meta.dir, "..", "skills", "message-use", "SKILL.md"), "utf8"));
 });

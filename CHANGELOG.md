@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- The Skill moved to `skills/message-use/`, the standard folder Claude Code and Codex enumerate. `message-use skill install` still installs the embedded copy offline.
+
 ## 0.1.2
 
 - `code --wait --json` now returns a structured timeout object with database readability, newest local-message timestamp/age, incoming counts (last 10 minutes and during the wait), sender-filter presence and troubleshooting guidance. Diagnostic output omits message bodies, codes, sender identifiers and database paths; an old local timestamp does not claim a sync failure.

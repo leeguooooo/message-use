@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- `message-use skill install` (also run by the installer and `upgrade`) no longer writes `~/.claude/skills/message-use` or `~/.codex/skills/message-use` when the Claude Code or Codex plugin already provides the skill, so it is not listed twice. A copy it wrote earlier (a lone, unchanged `SKILL.md`) is removed; anything else in that folder is left alone.
+
 ## 0.1.3
 
 - The Skill moved to `skills/message-use/`, the standard folder Claude Code and Codex enumerate. `message-use skill install` still installs the embedded copy offline.

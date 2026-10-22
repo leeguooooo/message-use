@@ -38,7 +38,7 @@ import {
 import { SKILL_MD } from "./skill.ts";
 import { databaseDiagnostics, diagnosticHint } from "./diagnostics.ts";
 
-export const VERSION = "0.1.3";
+export const VERSION = "0.1.4";
 
 const HELP = `message-use ${VERSION} — iMessage / SMS for agents, through macOS Messages.
 

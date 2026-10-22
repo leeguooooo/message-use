@@ -2,7 +2,7 @@
 // message-use — read, search, watch and send iMessage / SMS through macOS Messages,
 // and pull verification codes out of incoming texts. Part of the *-use family.
 
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -28,6 +28,7 @@ import {
   detectSkillChannels,
   maybeUpdateNotice,
   MESSAGE_USE_UPGRADE_INSTALLER_ENV,
+  pluginProvidesSkill,
   refreshSkills,
   runInstaller,
   runUpdateCheck,
@@ -429,8 +430,22 @@ function cmdDoctor(p: Parsed): void {
 
 function installSkill(): void {
   const home = homedir();
-  for (const dir of [join(home, ".claude", "skills", "message-use"), join(home, ".codex", "skills", "message-use")]) {
+  for (const [host, dir] of [["claude", join(home, ".claude", "skills", "message-use")], ["codex", join(home, ".codex", "skills", "message-use")]] as const) {
     const path = join(dir, "SKILL.md");
+    if (pluginProvidesSkill(host, home)) {
+      // Remove only a copy this command wrote: a lone SKILL.md identical to the embedded one.
+      try {
+        if (readdirSync(dir).join() === "SKILL.md" && readFileSync(path, "utf8") === SKILL_MD) {
+          rmSync(dir, { recursive: true });
+          console.log(`skill copy removed: ${dir} (the ${host === "claude" ? "Claude Code" : "Codex"} plugin provides it)`);
+          continue;
+        }
+      } catch {
+        // no earlier copy
+      }
+      console.log(`skill skipped: ${dir} (the ${host === "claude" ? "Claude Code" : "Codex"} plugin provides it)`);
+      continue;
+    }
     mkdirSync(dirname(path), { recursive: true });
     try {
       if (readFileSync(path, "utf8") === SKILL_MD) {

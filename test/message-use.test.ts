@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { extractCode, smsBrand } from "../src/codes.ts";
 import { appleDateToMs, decodeAttributedBody, msToAppleDate, phoneKey } from "../src/db.ts";
@@ -221,4 +223,27 @@ describe("commands (fixture database)", () => {
 
 test("embedded skill is byte-identical to SKILL.md", () => {
   expect(SKILL_MD).toBe(readFileSync(join(import.meta.dir, "..", "skills", "message-use", "SKILL.md"), "utf8"));
+});
+
+describe("skill install with host plugins", () => {
+  const run = (home: string) =>
+    spawnSync("bun", [join(import.meta.dir, "..", "src", "cli.ts"), "skill", "install"], { env: { ...process.env, HOME: home }, encoding: "utf8" });
+  test("plugins that provide the skill replace this command's personal copies", () => {
+    const home = mkdtempSync(join(tmpdir(), "message-use-skill-"));
+    expect(run(home).status).toBe(0);
+    const claude = join(home, ".claude", "skills", "message-use"), codex = join(home, ".codex", "skills", "message-use");
+    expect(existsSync(join(claude, "SKILL.md")) && existsSync(join(codex, "SKILL.md"))).toBe(true);
+    mkdirSync(join(home, ".claude", "plugins"), { recursive: true });
+    writeFileSync(join(home, ".claude", "plugins", "installed_plugins.json"), JSON.stringify({ plugins: { "message-use@leeguooooo-plugins": [{}] } }));
+    writeFileSync(join(home, ".codex", "config.toml"), '[plugins."message-use@leeguooooo-plugins"]\nenabled = false\n');
+    writeFileSync(join(claude, "notes.md"), "mine");
+    const out = run(home);
+    expect(out.status).toBe(0);
+    expect(existsSync(join(claude, "notes.md"))).toBe(true);
+    expect(out.stdout).toContain("skill skipped");
+    expect(existsSync(join(codex, "SKILL.md"))).toBe(true);
+    writeFileSync(join(home, ".codex", "config.toml"), '[plugins."message-use@leeguooooo-plugins"]\nenabled = true\n');
+    expect(run(home).stdout).toContain("skill copy removed");
+    expect(existsSync(codex)).toBe(false);
+  });
 });
